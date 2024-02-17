@@ -1,0 +1,25 @@
+{
+  "name": "backendproject",
+  "version": "1.0.0",
+  "description": "BackEnd for my javascript project",
+  "main": "index.js",
+  "scripts": {
+    "format": "prettier --write *.js",
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "prettier": "^3.2.5"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.4",
+    "express": "^4.18.2",
+    "http": "^0.0.1-security",
+    "nodemon": "^3.0.2",
+    "sequelize": "^6.37.0",
+    "sqlite3": "5.0.2"
+  }
+}

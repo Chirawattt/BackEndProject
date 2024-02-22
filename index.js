@@ -145,11 +145,38 @@ const Order = sequelize.define('order', {
         autoIncrement: true,
         primaryKey: true
     },
-    cart_id: {
-        type: Sequelize.STRING,
+    user_id: {
+        type: Sequelize.INTEGER,
         allowNull: false
+    },
+    totalAmount: {
+        type: Sequelize.INTEGER,
     }
 });
+
+const OrderDetail = sequelize.define('orderDetail', {
+    orderDetail: {
+        type: Sequelize.INTEGER,
+        autoIncrement: true,
+        primaryKey: true
+    },
+    order_id: {
+        type: Sequelize.INTEGER,
+        allowNull: false
+    },
+    bread_id: {
+        type: Sequelize.INTEGER,
+        allowNull: false
+    },
+    quantity: {
+        type: Sequelize.INTEGER,
+        allowNull: false
+    },
+    subtotal: {
+        type: Sequelize.INTEGER,
+        allowNull: false
+    }
+})
 
 // Define the payment model
 const Payment = sequelize.define('payment', {
@@ -166,16 +193,8 @@ const Payment = sequelize.define('payment', {
         type: Sequelize.DATE,
         allowNull: false
     },
-    paymentMethod: {
-        type: Sequelize.STRING,
-        allowNull: false
-    },
     amount: {
         type: Sequelize.INTEGER,
-        allowNull: false
-    },
-    status: {
-        type: Sequelize.STRING,
         allowNull: false
     },
     paymentImg: {
@@ -262,7 +281,7 @@ app.post('/user/register', (req, res) => {
                         Cart.create({ // Generate Cart for new user
                             user_id: data.dataValues.userId
                         }).then(() => {
-                            res.send(`Already generated cart for User: '${data.dataValues.username}'\nRegister Successfully!`);
+                            res.send(`Register Successfully!\nAlready generated cart for User: '${data.dataValues.username}'`);
                         }).catch(err => {
                             res.status(500).send(err);
                         });
@@ -287,10 +306,7 @@ app.post('/user/login', async (req, res) => {
         const user = await authenUser(req.body.username, req.body.password);
         if (user === "!password") res.send("Invalid Password\nPlease try again!");
         else if (user === "!username&!password") res.send("Invalid Username and Password\nPlease try again!");
-        else {
-            req.session.userId = user.userId;
-            res.json(user);
-        }
+        else { res.json(user); }
     } catch (err) {
         res.status(500).send(err);
     }
@@ -431,6 +447,7 @@ app.post('/bread/update/:id', (req, res) => {
         res.status(500).send('Error');
     }
 });
+
 // route to delete a bread
 app.delete('/bread/delete/:id', (req, res) =>{
     Bread.findByPk(req.params.id).then(data => {
@@ -445,34 +462,64 @@ app.delete('/bread/delete/:id', (req, res) =>{
     });
 });
 
-
-// route to add bread to cart
-app.post('/cart/add/:breadId', async (req, res) => { // req.body => cart_id, quantity
-    // Prase string breadId to Integer
-    breadId = await parseInt(req.params.breadId);
-    // Calculate subtotal of bread
-    subtotal = await Bread.findByPk(breadId).then(data => {
-        if (data) {
-            return data.price * req.body.quantity;
-        }else return 0;
-    }).catch(err => {
-        res.status(500).send(err);
-    });
-
-    CartDetail.create({
-        cart_id: req.body.cart_id,
-        bread_id: breadId,
-        quantity: req.body.quantity,
-        subtotal: subtotal
+// route to get cart detail from each user
+app.get('/cart/getDetail/:userId', (req, res) => {
+    Cart.findOne({
+        where: {user_id: req.params.userId}
     }).then(data => {
-        if (data) res.json(data);
-        else res.send("Cannot add bread into cart!");
+        if (data) {
+            CartDetail.findAll({
+                where: {cart_id: data.cartId}
+            }).then(dataDetail => {
+                if (dataDetail) {
+                    res.json(dataDetail);
+                }else res.send("Can't get detail of the cart");
+            }).catch(err => {
+                res.status(500).send(err);
+            });
+        }else res.send("Can't get data of cart from this user");
     }).catch(err => {
         res.status(500).send(err);
     });
 });
 
-// Test some route
+// route to add or update bread in cart detail
+app.post('/cart/add/:breadId', async (req, res) => { // req.body => cart_id, quantity
+    // Prase string breadId to Integer
+    let breadId = parseInt(req.params.breadId); // pull bread data from id
+    let breadData = await Bread.findByPk(breadId); 
+    CartDetail.findOne({
+        where: {
+            cart_id: req.body.cart_id,
+            bread_id: breadId
+        }
+    }).then(async (data) => {
+        if (data) { // this mean user already add that bread to cart detail.
+            // So we'll have to update the quantity of the bread and calculate new subtotal
+            let newQuantity = data.quantity + req.body.quantity; // new quantity after merge old and new quantity
+            let subtotal = breadData.price * newQuantity; // calculate new subtotal and put it back
+            data.update({
+                quantity: newQuantity,
+                subtotal: subtotal
+            }).then(updateData => { res.json(updateData); 
+            }).catch(err => {res.status(500).send(err);});
+        }else { // this mean user has never been add that bread before.
+            // So we'll have to create new cart detail of the bread
+            let subtotal = breadData.price * req.body.quantity;
+            CartDetail.create({
+                cart_id: req.body.cart_id,
+                bread_id: breadId,
+                quantity: req.body.quantity,
+                subtotal: subtotal
+            }).then(data => {
+                if (data) res.json(data);
+                else res.send("Cannot add bread into cart!");
+            }).catch(err => { res.status(500).send(err); });
+        }
+    }).catch(err => { res.status(500).send(err); });
+});
+
+// route to delete cart detail from the cart
 app.delete('/cart/delete/:cartDetailId', (req, res) => {
     CartDetail.findByPk(req.params.cartDetailId).then(data => {
         if (data) {
@@ -481,10 +528,48 @@ app.delete('/cart/delete/:cartDetailId', (req, res) => {
             }).catch(err => {res.status(500).send(err);})
             data.destroy().catch(err => {res.status(500).send(err);})
         }else res.send("Can not delete cart detail");
+    });
+});
 
-    })
+
+// Test some route to make an order
+app.post('/makeOrder/:userId', async (req, res) => {
+
+    let cartData = await Cart.findOne({
+        where: {user_id: req.params.userId}
+    }).catch(err => {res.status(500).send(err);});
+    
+    let cartDetailData = await CartDetail.findAll({ // value is -> [{obj}, {obj}, {obj}, ...]
+        where: {cart_id: cartData.dataValues.cartId} // retrieve all data which cart_id is ... 
+    }).catch(err => {res.status(500).send(err);});
+
+    let totalAmount = 0;
+    cartDetailData.forEach(cartDt => { // forEach to access data in [{obj}, {obj}]
+        totalAmount += cartDt.subtotal;
+    });
+
+    Order.create({
+        user_id: req.params.userId,
+        totalAmount: totalAmount
+    }).then(data => {
+        cartDetailData.forEach(cartData => {
+            OrderDetail.create({
+                order_id: data.orderId,
+                bread_id: cartData.bread_id,
+                quantity: cartData.quantity,
+                subtotal: cartData.subtotal
+            }).catch(err => {res.status(500).send(err);})
+        });
+    }).catch(err => {res.status(500).send(err);});
+    
+    res.send("Make Order Successfully!");
 });
 
 
 const port = process.env.PORT || 3000;
 app.listen(port, () => console.log(`Listening at http://localhost:${port}`));
+
+// Check-list
+// - makeOrder ต้องกดสั่ง order แล้วสินค้าในตะกร้าจะ clear ให้อัตโนมัติ
+// - หรืออาจจะเลือกตรวจสอบแบบระเอียดว่าถ้าเป็น order เดิมกับที่เคยสั่งไว้แล้วก็จะไม่สามารถ makeOrder ได้และเด้งกลับไป
+// - เหลือทำ Payment

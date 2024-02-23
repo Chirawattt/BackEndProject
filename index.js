@@ -621,15 +621,14 @@ app.get('/order/received', (req, res) => {
 
 // route to update status of order
 app.post('/order/update/status/:orderId', (req,res) => {
-    Order.findByPk(req.params.orderId).then(data => {
+    let orderId = parseInt(req.params.orderId);
+    Order.findByPk(orderId).then(data => {
         if (data) {
             data.update({ status: "done" });
             res.json(data);
         }else res.send("Can't find this order");
    }).catch(err => res.status(500).send(err));
 });
-
-
 
 // route to get done order
 app.get('/order/done', (req, res) => {
@@ -641,11 +640,6 @@ app.get('/order/done', (req, res) => {
     }).catch(err => res.status(500).send(err));
 });
 
-
-
-
 const port = process.env.PORT || 3000;
 app.listen(port, () => console.log(`Listening at http://localhost:${port}`));
 
-// Check-list
-// - notify to Admin about order coming

@@ -151,6 +151,10 @@ const Order = sequelize.define('order', {
     },
     totalAmount: {
         type: Sequelize.INTEGER,
+    },
+    status: {
+        type: Sequelize.STRING,
+        defaultValue: 'order-received'
     }
 });
 
@@ -190,7 +194,7 @@ const Payment = sequelize.define('payment', {
         allowNull: false
     },
     paymentDate: {
-        type: Sequelize.DATE,
+        type: Sequelize.STRING,
         allowNull: false
     },
     amount: {
@@ -230,6 +234,8 @@ async function authenUser(username, password){
         throw error;
     }
 }
+
+
 
 // route to get all user
 app.get('/user/getUser', (req, res) => {
@@ -278,10 +284,9 @@ app.post('/user/register', (req, res) => {
                 
                 if (registerValid) {
                     User.create(req.body).then(data => {
+                        res.json(data);
                         Cart.create({ // Generate Cart for new user
                             user_id: data.dataValues.userId
-                        }).then(() => {
-                            res.send(`Register Successfully!\nAlready generated cart for User: '${data.dataValues.username}'`);
                         }).catch(err => {
                             res.status(500).send(err);
                         });
@@ -391,6 +396,19 @@ app.get('/bread/get/:id', (req, res) => {
         res.status(500).send(err);
     });
 });
+
+// route to get bread by type
+app.get('/bread/type/:breadType', (req, res) => {
+    Bread.findAll({
+        where: {typeBread: req.params.breadType}
+    }).then(data => {
+        if (data) {
+            if (data.length > 0) res.json(data);
+            else res.send(`We don't have this '${req.params.breadType}' type of Bread`);
+        }
+    }).catch (err => {res.status(500).send(err);})
+});
+
 
 // route to create data of Bread
 app.post('/bread/new', (req, res) => {
@@ -531,10 +549,8 @@ app.delete('/cart/delete/:cartDetailId', (req, res) => {
     });
 });
 
-
-// Test some route to make an order
+// route to create an order
 app.post('/makeOrder/:userId', async (req, res) => {
-
     let cartData = await Cart.findOne({
         where: {user_id: req.params.userId}
     }).catch(err => {res.status(500).send(err);});
@@ -543,33 +559,93 @@ app.post('/makeOrder/:userId', async (req, res) => {
         where: {cart_id: cartData.dataValues.cartId} // retrieve all data which cart_id is ... 
     }).catch(err => {res.status(500).send(err);});
 
-    let totalAmount = 0;
-    cartDetailData.forEach(cartDt => { // forEach to access data in [{obj}, {obj}]
-        totalAmount += cartDt.subtotal;
-    });
+    if (cartDetailData.length < 1) {
+        res.send("You haven't add any bread into cart yet\nPlease add any bread you want to buy first.");
+    }else {
+            let totalAmount = 0;
+            cartDetailData.forEach(cartDt => { // forEach to access data in [{obj}, {obj}]
+                totalAmount += cartDt.subtotal;
+            });
+        
+            Order.create({
+                user_id: req.params.userId,
+                totalAmount: totalAmount
+            }).then(data => {
+                cartDetailData.forEach(cartData => {
+                    OrderDetail.create({
+                        order_id: data.orderId,
+                        bread_id: cartData.bread_id,
+                        quantity: cartData.quantity,
+                        subtotal: cartData.subtotal
+                    }).catch(err => {res.status(500).send(err);})
+                });
 
-    Order.create({
-        user_id: req.params.userId,
-        totalAmount: totalAmount
-    }).then(data => {
-        cartDetailData.forEach(cartData => {
-            OrderDetail.create({
-                order_id: data.orderId,
-                bread_id: cartData.bread_id,
-                quantity: cartData.quantity,
-                subtotal: cartData.subtotal
-            }).catch(err => {res.status(500).send(err);})
-        });
-    }).catch(err => {res.status(500).send(err);});
-    
-    res.send("Make Order Successfully!");
+                // Get current date time now
+                const currentDate = new Date();
+                const day = currentDate.getDate().toString().padStart(2,'0');
+                const month = (currentDate.getMonth() + 1).toString().padStart(2,'0');
+                const year = currentDate.getFullYear() + 543; // Convert to Buddhist Era (B.E.)
+                const paymentDate = `${day}/${month}/${year}`;
+
+                // Create a payment
+                Payment.create({
+                    order_id: data.orderId,
+                    paymentDate: paymentDate,
+                    amount: totalAmount
+                }).then(data => {
+                    res.json(data);
+                }).catch(err => res.status(500).send(err));
+            }).catch(err => {res.status(500).send(err);});
+            
+            // Delete data in cart after user alreay check out bread
+            CartDetail.findAll({
+                where: {cart_id: cartData.dataValues.cartId}
+            }).then(data => {
+                data.forEach(cartDt => {
+                    console.log(`Delete cart detail id: ${cartDt.dataValues.cartDetailId} of cart id: ${cartDt.dataValues.cart_id}`);
+                    cartDt.destroy().catch(err => res.status(500).send(err));
+                });
+            }).catch(err => { res.status(500).send(err)});
+    }
 });
+
+// route to received order from user
+app.get('/order/received', (req, res) => {
+    Order.findAll({
+        where: {status: "order-received"}
+    }).then(data => {
+        if (data.length === 0) res.send("Don't have any Order yet."); 
+        else res.json(data); 
+    }).catch(err => res.status(500).send(err));
+});
+
+// route to update status of order
+app.post('/order/update/status/:orderId', (req,res) => {
+    Order.findByPk(req.params.orderId).then(data => {
+        if (data) {
+            data.update({ status: "done" });
+            res.json(data);
+        }else res.send("Can't find this order");
+   }).catch(err => res.status(500).send(err));
+});
+
+
+
+// route to get done order
+app.get('/order/done', (req, res) => {
+    Order.findAll({
+        where: {status: "done"}
+    }).then(data => {
+        if (data.length === 0) res.send("Don't have any done order yet."); 
+        else res.json(data); 
+    }).catch(err => res.status(500).send(err));
+});
+
+
 
 
 const port = process.env.PORT || 3000;
 app.listen(port, () => console.log(`Listening at http://localhost:${port}`));
 
 // Check-list
-// - makeOrder ต้องกดสั่ง order แล้วสินค้าในตะกร้าจะ clear ให้อัตโนมัติ
-// - หรืออาจจะเลือกตรวจสอบแบบระเอียดว่าถ้าเป็น order เดิมกับที่เคยสั่งไว้แล้วก็จะไม่สามารถ makeOrder ได้และเด้งกลับไป
-// - เหลือทำ Payment
+// - notify to Admin about order coming

@@ -486,6 +486,22 @@ app.post('/cart/add/:breadId', async (req, res) => { // req.body => cart_id, qua
     }).catch(err => { res.status(500).send(err); });
 });
 
+// route to update quantity of bread in cart detail
+app.post('/cart/update/:cartDetailId', (req, res) => {
+    CartDetail.findByPk(req.params.cartDetailId).then(data => {
+        if (data) {
+            Bread.findByPk(data.bread_id).then(breadData => {
+                let subtotal = pasrseInt(breadData.price) * parseInt(req.body.quantity);
+                data.update({
+                    quantity: req.body.quantity,
+                    subtotal: subtotal
+                }).then(updateData => { res.json(updateData); 
+                }).catch(err => {res.status(500).send(err);});
+            }).catch(err => {res.status(500).send(err);});
+        }else res.send("Can not update cart detail");
+    });
+});
+
 // route to delete cart detail from the cart
 app.delete('/cart/delete/:cartDetailId', (req, res) => {
     CartDetail.findByPk(req.params.cartDetailId).then(data => {

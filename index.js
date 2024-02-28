@@ -5,8 +5,6 @@
 const express = require('express'); // web framework
 const Sequelize = require('sequelize');
 const app = express(); // web app
-const fs = require('fs');
-const path = require('path');
 const session = require('express-session');
 
 
@@ -242,9 +240,7 @@ app.get('/user/getUser', (req, res) => {
     User.findAll().then(data => {
         if (data) res.json(data);
         else res.status(404).send("Can't find all user");
-    }).catch(err => {
-        res.status(500).send(err);
-    });
+    }).catch(err => { res.status(500).send(err); });
 });
 
 // route to get user information by id
@@ -252,9 +248,7 @@ app.get('/user/getUser/:id', (req,res) => {
     User.findByPk(req.params.id).then(data => {
         if (data) res.json(data);
         else res.status(404).send("Doesn't have data of this user");
-    }).catch(err => {
-        res.status(500).send(err);
-    });
+    }).catch(err => { res.status(500).send(err); });
 });
 
 // route to create an account
@@ -287,32 +281,22 @@ app.post('/user/register', (req, res) => {
                         res.json(data);
                         Cart.create({ // Generate Cart for new user
                             user_id: data.dataValues.userId
-                        }).catch(err => {
-                            res.status(500).send(err);
-                        });
-                    }).catch(err => {
-                        res.status(500).send(err);
-                    });
-                }else {
-                    res.send('Register Unsuccessfully!' + strError + '\nPlease try again!');
-                }
+                        }).catch(err => { res.status(500).send(err); });
+                    }).catch(err => { res.status(500).send(err); });
+                }else { res.send('Register Unsuccessfully!' + strError + '\nPlease try again!'); }
             } else res.send('Could not find except User');
-        }).catch(err => {
-            res.status(500).send(err);
-        })
-    } catch (err) {
-        res.status(500).send(err);
-    }
+        }).catch(err => { res.status(500).send(err); });
+    } catch (err) { res.status(500).send(err); }
 });
 
 // route to login an account by using post
 app.post('/user/login', async (req, res) => {
     try {
         const user = await authenUser(req.body.username, req.body.password);
-        if (user === "!password") res.send("Invalid Password\nPlease try again!");
-        else if (user === "!username&!password") res.send("Invalid Username and Password\nPlease try again!");
-        else { res.json(user); }
-    } catch (err) {
+        if (user === "!password") res.json({statuslogin: false, data: null, message: "Invalid Password\nPlease try again!"});
+        else if (user === "!username&!password") res.json({statuslogin: false, data: null, message: "Invalid Username and Password\nPlease try again!"});
+        else { res.json({statuslogin: true, data: user, message: "Login successfully!"}); }
+    } catch (err) { 
         res.status(500).send(err);
     }
 });
@@ -346,21 +330,14 @@ app.post('/user/update/:id', (req, res) => {
                 
                 if (updateValid) {
                     User.findByPk(req.params.id).then(user => {
-                        user.update(req.body);
-                        res.send('Update profile successfully.');
-                    }).catch(err => {
-                        res.status(500).send(err);
-                    });
-                }else {
-                    res.send('Update Profile invalid' + strError + '\nPlease try again!');
-                }
-            } else res.send('Could not find except User');
-        }).catch(err => {
-            res.status(500).send(err);
-        })
-    } catch (err) {
-        res.status(500).send('Error');
-    }
+                        user.update(req.body).then(data => {
+                            res.json({statusUpdate: true, data: data, message: 'Update profile successfully.'});
+                        }).catch(err => { res.status(500).send(err); });
+                    }).catch(err => { res.status(500).send(err); });
+                }else { res.json({statusUpdate: false, data: null, message: 'Update Profile invalid' + strError + '\nPlease try again!'});  }
+            } else res.json({statusUpdate: false, data: null, message: 'Could not find except User'});
+        }).catch(err => { res.status(500).send(err); })
+    } catch (err) { res.status(500).send('Error'); }
 });
 
 // route to delete user data
@@ -372,9 +349,7 @@ app.delete('/user/delete/:id', (req, res) => {
                 res.status(500).send(err);
             });
         }else res.send(`Does't have these id in system.`);
-    }).catch(err => {
-        res.status(500).send(err);
-    });
+    }).catch(err => { res.status(500).send(err); });
 });
 
 // route to get all bread
@@ -382,9 +357,7 @@ app.get('/bread/all', (req, res) =>{
     Bread.findAll().then(data => {
         if(data) res.json(data);
         else res.send("All bread not found");
-    }).catch(err => {
-        res.status(500).send(err);
-    });
+    }).catch(err => { res.status(500).send(err); });
 });
 
 // route to get some bread by id
@@ -392,9 +365,7 @@ app.get('/bread/get/:id', (req, res) => {
     Bread.findByPk(req.params.id).then(data => {
         if (data) res.json(data);
         else res.send('Not found this bread');
-    }).catch(err => {
-        res.status(500).send(err);
-    });
+    }).catch(err => { res.status(500).send(err); });
 });
 
 // route to get bread by type
@@ -417,15 +388,10 @@ app.post('/bread/new', (req, res) => {
     }).then(data => {
         if(data) res.send('Name of this bread is already in use!\nPlease try another name of bread');
         else {
-            Bread.create(req.body).then(bread => {
-                res.json(bread);
-            }).catch(err => {
-                res.status(500).send(err);
-            });
+            Bread.create(req.body).then(bread => { res.json(bread);
+            }).catch(err => { res.status(500).send(err); });
         }
-    }).catch(err => {
-        res.status(500).send(err);
-    });
+    }).catch(err => { res.status(500).send(err); });
 });
 
 // route to update data of bread
@@ -438,9 +404,7 @@ app.post('/bread/update/:id', (req, res) => {
             let updateValid = true;
             let strError = "";
             if (data) {
-                data.forEach(bread => {
-                    Alldata.push(bread.dataValues.name);
-                });
+                data.forEach(bread => { Alldata.push(bread.dataValues.name); });
 
                 if (Alldata.includes(req.body.name)) {
                    strError = `\nBread name: "${req.body.name}" is already use`;
@@ -450,60 +414,45 @@ app.post('/bread/update/:id', (req, res) => {
                 if (updateValid) {
                     Bread.findByPk(req.params.id).then(bread => {
                         bread.update(req.body);
-                        res.send('Update Bread successfully.');
+                        res.json({statusUpdate: true, data: bread, message: 'Update Bread successfully.'});
                     }).catch(err => {
                         res.status(500).send(err);
                     });
-                }else {
-                    res.send('Update Bread invalid' + strError + '\nPlease try again!');
-                }
+                }else { 
+                    res.json({statusUpdate: false, data: null, message: 'Update Bread invalid' + strError + '\nPlease try again!'}); }
             } else res.send('Could not find except Bread');
-        }).catch(err => {
-            res.status(500).send(err);
-        })
-    } catch (err) {
-        res.status(500).send('Error');
-    }
+        }).catch(err => { res.status(500).send(err); })
+    } catch (err) { res.status(500).send('Error'); }
 });
 
 // route to delete a bread
 app.delete('/bread/delete/:id', (req, res) =>{
     Bread.findByPk(req.params.id).then(data => {
         if(data) {
-            res.send(`${data.name} has been delete from Bread store`);
-            data.destroy().catch(err => {
-                res.status(500).send(err);
-            });
+            res.json({message: `${data.name} has been delete from Bread store`});
+            data.destroy().catch(err => { res.status(500).send(err); });
         }else res.status(404).send("Not found this bread");
-    }).catch(err => {
-        res.status(500).send(err);
-    });
+    }).catch(err => { res.status(500).send(err); });
 });
 
 // route to get cart detail from each user
 app.get('/cart/getDetail/:userId', (req, res) => {
-    Cart.findOne({
-        where: {user_id: req.params.userId}
+    Cart.findOne({ where: {user_id: req.params.userId} 
     }).then(data => {
         if (data) {
             CartDetail.findAll({
                 where: {cart_id: data.cartId}
             }).then(dataDetail => {
-                if (dataDetail) {
-                    res.json(dataDetail);
-                }else res.send("Can't get detail of the cart");
-            }).catch(err => {
-                res.status(500).send(err);
-            });
+                if (dataDetail) { res.json(dataDetail); }
+                else res.send("Can't get detail of the cart");
+            }).catch(err => { res.status(500).send(err); });
         }else res.send("Can't get data of cart from this user");
-    }).catch(err => {
-        res.status(500).send(err);
-    });
+    }).catch(err => { res.status(500).send(err); });
 });
 
 // route to add or update bread in cart detail
 app.post('/cart/add/:breadId', async (req, res) => { // req.body => cart_id, quantity
-    // Prase string breadId to Integer
+    // Parse string breadId to Integer
     let breadId = parseInt(req.params.breadId); // pull bread data from id
     let breadData = await Bread.findByPk(breadId); 
     CartDetail.findOne({
@@ -514,7 +463,7 @@ app.post('/cart/add/:breadId', async (req, res) => { // req.body => cart_id, qua
     }).then(async (data) => {
         if (data) { // this mean user already add that bread to cart detail.
             // So we'll have to update the quantity of the bread and calculate new subtotal
-            let newQuantity = data.quantity + req.body.quantity; // new quantity after merge old and new quantity
+            let newQuantity = parseInt(data.quantity) + parseInt(req.body.quantity); // new quantity after merge old and new quantity
             let subtotal = breadData.price * newQuantity; // calculate new subtotal and put it back
             data.update({
                 quantity: newQuantity,
@@ -523,7 +472,7 @@ app.post('/cart/add/:breadId', async (req, res) => { // req.body => cart_id, qua
             }).catch(err => {res.status(500).send(err);});
         }else { // this mean user has never been add that bread before.
             // So we'll have to create new cart detail of the bread
-            let subtotal = breadData.price * req.body.quantity;
+            let subtotal = breadData.price * parseInt(req.body.quantity);
             CartDetail.create({
                 cart_id: req.body.cart_id,
                 bread_id: breadId,
@@ -560,7 +509,7 @@ app.post('/makeOrder/:userId', async (req, res) => {
     }).catch(err => {res.status(500).send(err);});
 
     if (cartDetailData.length < 1) {
-        res.send("You haven't add any bread into cart yet\nPlease add any bread you want to buy first.");
+        res.json({makeOrderStatus: false, message: "You haven't add any bread into cart yet\nPlease add any bread you want to buy first."});
     }else {
             let totalAmount = 0;
             cartDetailData.forEach(cartDt => { // forEach to access data in [{obj}, {obj}]
@@ -592,8 +541,7 @@ app.post('/makeOrder/:userId', async (req, res) => {
                     order_id: data.orderId,
                     paymentDate: paymentDate,
                     amount: totalAmount
-                }).then(data => {
-                    res.json(data);
+                }).then(data => { res.json(data); 
                 }).catch(err => res.status(500).send(err));
             }).catch(err => {res.status(500).send(err);});
             

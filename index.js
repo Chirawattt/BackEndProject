@@ -450,6 +450,8 @@ app.get('/cart/getDetail/:userId', (req, res) => {
     }).catch(err => { res.status(500).send(err); });
 });
 
+
+
 // route to add or update bread in cart detail
 app.post('/cart/add/:breadId', async (req, res) => { // req.body => cart_id, quantity
     // Parse string breadId to Integer
@@ -572,14 +574,21 @@ app.post('/makeOrder/:userId', async (req, res) => {
             }).catch(err => { res.status(500).send(err)});
     }
 });
+// route to get all order
+app.get('/order/getAll', (req,res) => {
+    Order.findAll().then(data => {
+        if (data) res.json(data);
+        else res.send("Can't find all order");
+    }).catch(err => res.status(500).send(err));
+});
 
-// route to received order from user
-app.get('/order/received', (req, res) => {
-    Order.findAll({
-        where: {status: "order-received"}
+// route to get order by id 
+app.get('/order/detail/:orderId', (req,res) => {
+    OrderDetail.findAll({
+        where: {order_id: req.params.orderId}
     }).then(data => {
-        if (data.length === 0) res.send("Don't have any Order yet."); 
-        else res.json(data); 
+        if (data) res.json(data);
+        else res.send("Can't find this order");
     }).catch(err => res.status(500).send(err));
 });
 
@@ -594,15 +603,6 @@ app.post('/order/update/status/:orderId', (req,res) => {
    }).catch(err => res.status(500).send(err));
 });
 
-// route to get done order
-app.get('/order/done', (req, res) => {
-    Order.findAll({
-        where: {status: "done"}
-    }).then(data => {
-        if (data.length === 0) res.send("Don't have any done order yet."); 
-        else res.json(data); 
-    }).catch(err => res.status(500).send(err));
-});
 
 const port = process.env.PORT || 3000;
 app.listen(port, () => console.log(`Listening at http://localhost:${port}`));

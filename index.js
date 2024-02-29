@@ -293,9 +293,9 @@ app.post('/user/register', (req, res) => {
 app.post('/user/login', async (req, res) => {
     try {
         const user = await authenUser(req.body.username, req.body.password);
-        if (user === "!password") res.json({statuslogin: false, data: null, message: "Invalid Password\nPlease try again!"});
-        else if (user === "!username&!password") res.json({statuslogin: false, data: null, message: "Invalid Username and Password\nPlease try again!"});
-        else { res.json({statuslogin: true, data: user, message: "Login successfully!"}); }
+        if (user === "!password") res.json({statuslogin: false, user: null, message: "!password"});
+        else if (user === "!username&!password") res.json({statuslogin: false, user: null, message: "!username&!password"});
+        else { res.json({statuslogin: true, user: user, message: "Login successfully!"}); }
     } catch (err) { 
         res.status(500).send(err);
     }
@@ -318,24 +318,24 @@ app.post('/user/update/:id', (req, res) => {
                 });
 
                 if (Alldata.includes(req.body.username)) {
-                   strError = `\nUsername: "${req.body.username}" is already use`;
+                   strError = "!username";
                    updateValid = false;
                 }if (Alldata.includes(req.body.email)) {
-                    strError += `\nemail: "${req.body.email}" is already use`
+                    strError += "!email";
                     updateValid = false;
                 }if (Alldata.includes(req.body.phone)) {
-                    strError += `\nPhone number: "${req.body.phone}" is already use`
+                    strError += "!phone";
                     updateValid = false;
                 }
                 
                 if (updateValid) {
                     User.findByPk(req.params.id).then(user => {
                         user.update(req.body).then(data => {
-                            res.json({statusUpdate: true, data: data, message: 'Update profile successfully.'});
+                            res.json({statusUpdate: true, user: data, message: 'Update profile successfully.'});
                         }).catch(err => { res.status(500).send(err); });
                     }).catch(err => { res.status(500).send(err); });
-                }else { res.json({statusUpdate: false, data: null, message: 'Update Profile invalid' + strError + '\nPlease try again!'});  }
-            } else res.json({statusUpdate: false, data: null, message: 'Could not find except User'});
+                }else { res.json({statusUpdate: false, message: strError});  }
+            } else res.json({statusUpdate: false, message: 'Could not find except User'});
         }).catch(err => { res.status(500).send(err); })
     } catch (err) { res.status(500).send('Error'); }
 });
@@ -375,7 +375,7 @@ app.get('/bread/type/:breadType', (req, res) => {
     }).then(data => {
         if (data) {
             if (data.length > 0) res.json(data);
-            else res.send(`We don't have this '${req.params.breadType}' type of Bread`);
+            else res.json({data: null, message: `Not found any bread of type: ${req.params.breadType}`});
         }
     }).catch (err => {res.status(500).send(err);})
 });
@@ -579,6 +579,16 @@ app.get('/order/getAll', (req,res) => {
     Order.findAll().then(data => {
         if (data) res.json(data);
         else res.send("Can't find all order");
+    }).catch(err => res.status(500).send(err));
+});
+
+// route to get all order of user by id
+app.get('/order/getAll/:userId', (req,res) => {
+    Order.findAll({
+        where: {user_id: req.params.userId}
+    }).then(data => {
+        if (data) res.json(data);
+        else res.send("Can't find all order of this user");
     }).catch(err => res.status(500).send(err));
 });
 

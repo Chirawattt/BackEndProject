@@ -505,7 +505,7 @@ app.post('/cart/update/:cartDetailId', (req, res) => {
 });
 
 // route to delete cart detail from the cart
-app.delete('/cart/delete/:cartDetailId', (req, res) => {
+app.post('/cart/delete/:cartDetailId', (req, res) => {
     CartDetail.findByPk(req.params.cartDetailId).then(data => {
         if (data) {
             Bread.findByPk(data.bread_id).then(breadData => {
@@ -574,9 +574,20 @@ app.post('/makeOrder/:userId', async (req, res) => {
             }).catch(err => { res.status(500).send(err)});
     }
 });
+
 // route to get all order
 app.get('/order/getAll', (req,res) => {
     Order.findAll().then(data => {
+        if (data) res.json(data);
+        else res.send("Can't find all order");
+    }).catch(err => res.status(500).send(err));
+});
+
+// route to get all new order
+app.get('/order/getAll/new', (req,res) => {
+    Order.findAll({
+        where: {status: "order-received"}
+    }).then(data => {
         if (data) res.json(data);
         else res.send("Can't find all order");
     }).catch(err => res.status(500).send(err));

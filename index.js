@@ -266,13 +266,13 @@ app.post('/user/register', (req, res) => {
                 });
 
                 if (Alldata.includes(req.body.username)) {
-                   strError = `\nUsername: "${req.body.username}" is already use`;
+                   strError = "!username";
                    registerValid = false;
                 }if (Alldata.includes(req.body.email)) {
-                    strError += `\nemail: "${req.body.email}" is already use`;
+                    strError += "!email";
                     registerValid = false;
                 }if (Alldata.includes(req.body.phone)) {
-                    strError += `\nPhone number: "${req.body.phone}" is already use`;
+                    strError += "!phone";
                     registerValid = false;
                 }
                 
@@ -283,7 +283,7 @@ app.post('/user/register', (req, res) => {
                             user_id: data.dataValues.userId
                         }).catch(err => { res.status(500).send(err); });
                     }).catch(err => { res.status(500).send(err); });
-                }else { res.send('Register Unsuccessfully!' + strError + '\nPlease try again!'); }
+                }else { res.json({statusRegister: false, message: strError}); }
             } else res.send('Could not find except User');
         }).catch(err => { res.status(500).send(err); });
     } catch (err) { res.status(500).send(err); }
